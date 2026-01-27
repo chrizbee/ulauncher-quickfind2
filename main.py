@@ -98,6 +98,7 @@ class KeywordQueryEventListener(EventListener):
     def on_event(self, event: KeywordQueryEvent, extension: Extension) -> RenderResultListAction:  # type: ignore[override]
         
         if not QuickFind2Extension.fd_available:
+            logger.error("fd is not installed")
             return QuickFind2Extension.return_error("fd is not installed")
 
         pattern = event.get_argument()
@@ -109,13 +110,14 @@ class KeywordQueryEventListener(EventListener):
         key_files = extension.preferences.get("key_files", "ff")
         key_folders = extension.preferences.get("key_folders", "fo")
         search_path = str(Path(extension.preferences.get("search_path", "~")).expanduser())
+        fd_options = extension.preferences.get("fd_options", "--hidden")
         num_results = int(extension.preferences.get("num_results", "10"))
         query_icons = extension.preferences.get("query_icons", "yes") == "yes"
 
         if keyword == key_files:
-            extra = "-t f"
+            extra = f"{fd_options} -t f"
         elif keyword == key_folders:
-            extra = "-t d"
+            extra = f"{fd_options} -t d"
         else:
             return RenderResultListAction([])
         

@@ -30,6 +30,13 @@
       "default_value": "~"
     },
     {
+      "id": "fd_options",
+      "type": "text",
+      "name": "Additional fd options",
+      "description": "Add additional options to the fd call",
+      "default_value": "--hidden"
+    },
+    {
       "id": "num_results",
       "type": "input",
       "name": "Number of results",
