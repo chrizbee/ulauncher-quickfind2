@@ -1,60 +1,127 @@
+import logging
 import subprocess
+from shutil import which
+from pathlib import Path
+import gi
+gi.require_version("Gio", "2.0")
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gio, Gtk  # type: ignore
 from ulauncher.api.client.Extension import Extension
 from ulauncher.api.client.EventListener import EventListener
-from ulauncher.api.shared.event import KeywordQueryEvent, ItemEnterEvent
+from ulauncher.api.shared.event import KeywordQueryEvent
 from ulauncher.api.shared.item.ExtensionResultItem import ExtensionResultItem
 from ulauncher.api.shared.action.RenderResultListAction import RenderResultListAction
 from ulauncher.api.shared.action.RunScriptAction import RunScriptAction
 
-def find(search, path='~', extra=''):
-    result = subprocess.run(f"cd {path} && fd -a {extra} {search}", shell=True, capture_output=True, text=True)
-    return [i for i in result.stdout.splitlines()]
+logger = logging.getLogger(__name__)
 
-def get_item(path, name=None, desc=''):
-    return ExtensionResultItem(icon='images/icon.png',
-                                             name=f'{name if name else path}',
-                                             description=desc,
-                                             on_enter=RunScriptAction(f'xdg-open "{path}"', []))
-
-class DemoExtension(Extension):
+class QuickFind2Extension(Extension):
+    fd_available = which("fd") is not None
+    icon_theme = None
+    cached_folder_icon = None
 
     def __init__(self):
         super().__init__()
         self.subscribe(KeywordQueryEvent, KeywordQueryEventListener())
+        if QuickFind2Extension.icon_theme is None:
+            QuickFind2Extension.icon_theme = Gtk.IconTheme.get_default()
+        if QuickFind2Extension.cached_folder_icon is None:
+            QuickFind2Extension.cached_folder_icon = QuickFind2Extension.get_folder_icon()
 
+    @staticmethod
+    def find(pattern: str, path: str, extra: str, max_results: int) -> list[str]:
+        cmd = ["fd", "-a", "-c", "never", "--max-results", str(max_results)] + extra.split() + [pattern]
+        result = subprocess.run(cmd, cwd=path, capture_output=True, text=True)
+        return result.stdout.splitlines()
+
+    @staticmethod
+    def get_folder_icon(size: int = 32) -> str:
+        import tempfile
+        temp_dir = tempfile.gettempdir()
+        icon = QuickFind2Extension.get_system_icon(temp_dir, size)
+        return icon if icon else "images/folder.svg"
+
+    @staticmethod
+    def get_system_icon(path: str, size: int = 32) -> str:
+        try:
+            file = Gio.File.new_for_path(path)
+            file_info = file.query_info("standard::icon", Gio.FileQueryInfoFlags.NONE, None)
+            icon = file_info.get_icon()
+            
+            if hasattr(icon, "get_names"):
+                icon_names = icon.get_names()
+            else:
+                icon_names = [icon.to_string()]
+            
+            for icon_name in icon_names:
+                icon_info = QuickFind2Extension.icon_theme.lookup_icon(icon_name, size, 0)  # type: ignore (is not None)
+                if icon_info:
+                    filename = icon_info.get_filename()
+                    if filename:
+                        return filename
+        except Exception as e:
+            logger.warning(f"Failed to get icon for {path}: {e}")
+        return ""
+    
+    @staticmethod
+    def get_default_icon(path: str) -> str:
+        if Path(path).is_dir():
+            return "images/folder.svg"
+        return "images/file.svg"
+
+    @staticmethod
+    def return_item(path: str, query_icons: bool) -> ExtensionResultItem:
+        ppath = Path(path)
+
+        icon = ""
+        if query_icons:
+            icon = QuickFind2Extension.get_system_icon(path)
+        if not icon:
+            icon = QuickFind2Extension.get_default_icon(path)
+            
+        return ExtensionResultItem(
+            icon = icon,
+            name = ppath.name,
+            description = str(ppath.parent),
+            on_enter = RunScriptAction(f'xdg-open "{path}"', []))
+
+    @staticmethod
+    def return_error(message: str) -> RenderResultListAction:
+        return RenderResultListAction([
+            ExtensionResultItem(
+                icon="images/error.svg",
+                name = "Error",
+                description = message)])
 
 class KeywordQueryEventListener(EventListener):
 
-    def on_event(self, event, extension):
-        data = event.get_argument()
+    def on_event(self, event: KeywordQueryEvent, extension: Extension) -> RenderResultListAction:  # type: ignore[override]
+        
+        if not QuickFind2Extension.fd_available:
+            return QuickFind2Extension.return_error("fd is not installed")
+
+        pattern = event.get_argument()
+        if not pattern or pattern.strip() == "":
+            return RenderResultListAction([])
+        
         keyword = event.get_keyword()
 
-        fd_keyword = extension.preferences.get('fd')
-        fdir_keyword = extension.preferences.get('fdir')
-        search_path = extension.preferences.get('dir')
-        cut_off = int(extension.preferences.get('cut'))
-        show_dirs = extension.preferences.get('show_dirs').lower().replace('\n', '') == 'yes'
+        key_files = extension.preferences.get("key_files", "ff")
+        key_folders = extension.preferences.get("key_folders", "fo")
+        search_path = str(Path(extension.preferences.get("search_path", "~")).expanduser())
+        num_results = int(extension.preferences.get("num_results", "10"))
+        query_icons = extension.preferences.get("query_icons", "yes") == "yes"
 
-        if fd_keyword == keyword:
-            found = find(data, path=search_path)
-        if fdir_keyword == keyword:
-            found = find(data, path=search_path, extra='-t d')
-
-        items = []
-        i = 0
-
-        while len(items) < cut_off and i < len(found):
-            path = found[i]
-
-            items.append(get_item(path))
-
-            new_path = "/".join(path.split('/')[:-1]) + '/'
-            if (len(items) < cut_off and not path.endswith('/')) and show_dirs:
-                items.append(get_item(new_path, name=f'↑Dir: {new_path}', desc='Directory of the file above'))
-                i += 1
-
-            i += 1
-        return RenderResultListAction(items)
+        if keyword == key_files:
+            extra = "-t f"
+        elif keyword == key_folders:
+            extra = "-t d"
+        else:
+            return RenderResultListAction([])
+        
+        results = QuickFind2Extension.find(pattern, search_path, extra, num_results)
+        return RenderResultListAction([
+            QuickFind2Extension.return_item(result, query_icons) for result in results])
     
-if __name__ == '__main__':
-    DemoExtension().run()
+if __name__ == "__main__":
+    QuickFind2Extension().run()

@@ -1,33 +1,29 @@
-# 🔍 QuickFind for Ulauncher
+# 🔍 QuickFind2 for Ulauncher
 
-**QuickFind** is a blazing fast Ulauncher extension that helps you **quickly find files, folders, and more** on your computer — all from your keyboard.
+**QuickFind2** is a blazing fast Ulauncher extension that helps you **quickly find files, folders, and more** on your computer — all from your keyboard.
 
-> "Don't search. **QuickFind.**"
-
----
+**QuickFind2** was forked from JerryV22's [QuickFind](https://github.com/JerryV22/Ulauncher-quickfind).
 
 ## Features
 
-- Find files and folders instantly using fd
-- Supports custom search directories
+- Find files using `ff`
+- Find folders using `fo`
+- Customizable search directory
 - Lightweight and fast
 - Smart fuzzy matching
-- Designed for Linux based on fd
-
----
+- Automatically query system icons
+- Designed for Linux based on `fd`
 
 ## Preview
 
-![](images/examples/0.png)
-![](images/examples/1.png)
-![](images/examples/2.png)
-![](images/examples/3.png)
+With system icons:
+![](images/examples/files_system.png)
+![](images/examples/folders.png)
 
----
+With default icons:
+![](images/examples/files_default.png)
 
 ##  Installation
-There are no requirements when it comes to python packages.
-
 ### Requirements
 
 - [Ulauncher](https://ulauncher.io/)
@@ -35,6 +31,7 @@ There are no requirements when it comes to python packages.
 
 ### Steps
 
-1. Open Ulauncher.
-2. Go to **Settings > Extensions > Add extension**.
-3. Paste the URL of this github page: https://github.com/JerryV22/Ulauncher-quickfind
+1. Open Ulauncher
+2. Go to Settings > Extensions > Add extension
+3. Paste this URL: https://github.com/chrizbee/ulauncher-quickfind2
+
