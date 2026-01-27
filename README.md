@@ -17,10 +17,12 @@
 ## Preview
 
 With system icons:
+
 ![](images/examples/files_system.png)
 ![](images/examples/folders.png)
 
 With default icons:
+
 ![](images/examples/files_default.png)
 
 ##  Installation
