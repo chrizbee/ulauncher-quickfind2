@@ -9,9 +9,11 @@
 - Find files using `ff`
 - Find folders using `fo`
 - Customizable search directory
+- Add custom `fd` options
+- Open item with LMB, open parent with RMB
+- Automatically query system icons
 - Lightweight and fast
 - Smart fuzzy matching
-- Automatically query system icons
 - Designed for Linux based on `fd`
 
 ## Preview

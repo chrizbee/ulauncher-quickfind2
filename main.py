@@ -1,5 +1,6 @@
 import logging
 import subprocess
+import re
 from shutil import which
 from pathlib import Path
 import gi
@@ -30,7 +31,12 @@ class QuickFind2Extension(Extension):
 
     @staticmethod
     def find(pattern: str, path: str, extra: str, max_results: int) -> list[str]:
-        cmd = ["fd", "-a", "-c", "never", "--max-results", str(max_results)] + extra.split() + [pattern]
+        tokens = pattern.strip().split()
+        if not tokens:
+            return []
+
+        regex = ".*".join(map(re.escape, tokens))
+        cmd = ["fd", "-a", "-c", "never", "--max-results", str(max_results)] + extra.split() + [regex]
         result = subprocess.run(cmd, cwd=path, capture_output=True, text=True)
         return result.stdout.splitlines()
 
@@ -83,7 +89,8 @@ class QuickFind2Extension(Extension):
             icon = icon,
             name = ppath.name,
             description = str(ppath.parent),
-            on_enter = RunScriptAction(f'xdg-open "{path}"', []))
+            on_enter = RunScriptAction(f'xdg-open "{path}"', []),
+            on_alt_enter = RunScriptAction(f'xdg-open "{str(ppath.parent)}"', []))
 
     @staticmethod
     def return_error(message: str) -> RenderResultListAction:
